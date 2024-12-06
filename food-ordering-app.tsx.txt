@@ -1,0 +1,309 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  ShoppingCart, 
+  Plus, 
+  Minus, 
+  Trash2, 
+  CheckCircle 
+} from 'lucide-react';
+
+// Data makanan awal
+const initialMenu = [
+  { id: 1, name: 'Nasi Goreng', price: 25000, stock: 20 },
+  { id: 2, name: 'Mie Goreng', price: 20000, stock: 15 },
+  { id: 3, name: 'Sate Ayam', price: 30000, stock: 10 },
+  { id: 4, name: 'Es Teh', price: 5000, stock: 50 },
+];
+
+const FoodOrderingApp = () => {
+  // State untuk manajemen aplikasi
+  const [menu, setMenu] = useState(initialMenu);
+  const [cart, setCart] = useState([]);
+  const [orderHistory, setOrderHistory] = useState([]);
+  const [newMenuItem, setNewMenuItem] = useState({ name: '', price: '', stock: '' });
+
+  // Fungsi tambah item ke keranjang
+  const addToCart = (item) => {
+    if (item.stock > 0) {
+      const existingItem = cart.find(cartItem => cartItem.id === item.id);
+      if (existingItem) {
+        setCart(cart.map(cartItem => 
+          cartItem.id === item.id 
+            ? { ...cartItem, quantity: cartItem.quantity + 1 } 
+            : cartItem
+        ));
+      } else {
+        setCart([...cart, { ...item, quantity: 1 }]);
+      }
+      
+      // Kurangi stok
+      setMenu(menu.map(menuItem => 
+        menuItem.id === item.id 
+          ? { ...menuItem, stock: menuItem.stock - 1 } 
+          : menuItem
+      ));
+    }
+  };
+
+  // Fungsi hapus item dari keranjang
+  const removeFromCart = (item) => {
+    const existingItem = cart.find(cartItem => cartItem.id === item.id);
+    
+    if (existingItem.quantity > 1) {
+      setCart(cart.map(cartItem => 
+        cartItem.id === item.id 
+          ? { ...cartItem, quantity: cartItem.quantity - 1 } 
+          : cartItem
+      ));
+    } else {
+      setCart(cart.filter(cartItem => cartItem.id !== item.id));
+    }
+
+    // Kembalikan stok
+    setMenu(menu.map(menuItem => 
+      menuItem.id === item.id 
+        ? { ...menuItem, stock: menuItem.stock + 1 } 
+        : menuItem
+    ));
+  };
+
+  // Hitung total harga
+  const calculateTotal = () => {
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    
+    // Diskon 10% jika total belanja di atas 50000
+    const discount = subtotal > 50000 ? subtotal * 0.1 : 0;
+    const total = subtotal - discount;
+
+    return { subtotal, discount, total };
+  };
+
+  // Proses pembayaran
+  const processPayment = () => {
+    if (cart.length === 0) {
+      alert('Keranjang masih kosong!');
+      return;
+    }
+
+    const { total } = calculateTotal();
+    const newOrder = {
+      id: orderHistory.length + 1,
+      items: cart,
+      total: total,
+      date: new Date().toLocaleString()
+    };
+
+    // Tambah ke riwayat pesanan
+    setOrderHistory([...orderHistory, newOrder]);
+    
+    // Reset keranjang
+    setCart([]);
+    alert(`Pembayaran berhasil! Total: Rp ${total.toLocaleString()}`);
+  };
+
+  // Tambah item menu baru
+  const addMenuItem = () => {
+    if (newMenuItem.name && newMenuItem.price && newMenuItem.stock) {
+      const newItem = {
+        id: menu.length + 1,
+        name: newMenuItem.name,
+        price: parseInt(newMenuItem.price),
+        stock: parseInt(newMenuItem.stock)
+      };
+      setMenu([...menu, newItem]);
+      setNewMenuItem({ name: '', price: '', stock: '' });
+    }
+  };
+
+  // Hapus item menu
+  const deleteMenuItem = (id) => {
+    setMenu(menu.filter(item => item.id !== id));
+  };
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Aplikasi Pemesanan Makanan</h1>
+      
+      {/* Manajemen Menu */}
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Manajemen Menu</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Daftar Menu */}
+            <div>
+              <h2 className="font-semibold mb-2">Daftar Menu</h2>
+              {menu.map(item => (
+                <div key={item.id} className="flex justify-between items-center mb-2 p-2 border rounded">
+                  <div>
+                    <span>{item.name}</span>
+                    <span className="ml-2 text-gray-500">Rp {item.price.toLocaleString()}</span>
+                    <span className="ml-2 text-blue-500">Stok: {item.stock}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => addToCart(item)}
+                      disabled={item.stock === 0}
+                    >
+                      <Plus className="mr-1" size={16} /> Pesan
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      className="ml-2"
+                      onClick={() => deleteMenuItem(item.id)}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tambah Menu Baru */}
+            <div>
+              <h2 className="font-semibold mb-2">Tambah Menu Baru</h2>
+              <div className="space-y-2">
+                <input 
+                  type="text" 
+                  placeholder="Nama Menu" 
+                  value={newMenuItem.name}
+                  onChange={(e) => setNewMenuItem({...newMenuItem, name: e.target.value})}
+                  className="w-full p-2 border rounded"
+                />
+                <input 
+                  type="number" 
+                  placeholder="Harga" 
+                  value={newMenuItem.price}
+                  onChange={(e) => setNewMenuItem({...newMenuItem, price: e.target.value})}
+                  className="w-full p-2 border rounded"
+                />
+                <input 
+                  type="number" 
+                  placeholder="Stok" 
+                  value={newMenuItem.stock}
+                  onChange={(e) => setNewMenuItem({...newMenuItem, stock: e.target.value})}
+                  className="w-full p-2 border rounded"
+                />
+                <Button onClick={addMenuItem} className="w-full">
+                  Tambah Menu
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Keranjang Belanja */}
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Keranjang Belanja</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {cart.length === 0 ? (
+            <p className="text-gray-500">Keranjang kosong</p>
+          ) : (
+            <>
+              {cart.map(item => (
+                <div key={item.id} className="flex justify-between items-center mb-2 p-2 border rounded">
+                  <div>
+                    <span>{item.name}</span>
+                    <span className="ml-2 text-gray-500">
+                      Rp {item.price.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => removeFromCart(item)}
+                    >
+                      <Minus size={16} />
+                    </Button>
+                    <span className="mx-2">{item.quantity}</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => addToCart(item)}
+                      disabled={item.stock === 0}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Ringkasan Biaya */}
+              <div className="mt-4">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>Rp {calculateTotal().subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Diskon (10%)</span>
+                  <span>- Rp {calculateTotal().discount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold mt-2">
+                  <span>Total</span>
+                  <span>Rp {calculateTotal().total.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Tombol Bayar */}
+              <Button 
+                onClick={processPayment} 
+                className="w-full mt-4"
+              >
+                <CheckCircle className="mr-2" /> Bayar Sekarang
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Riwayat Pesanan */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Pesanan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {orderHistory.length === 0 ? (
+            <p className="text-gray-500">Belum ada pesanan</p>
+          ) : (
+            orderHistory.map(order => (
+              <div key={order.id} className="border p-3 mb-2 rounded">
+                <div className="flex justify-between">
+                  <span>Pesanan #{order.id}</span>
+                  <span>{order.date}</span>
+                </div>
+                <div>
+                  {order.items.map(item => (
+                    <div key={item.id} className="flex justify-between">
+                      <span>{item.name} x {item.quantity}</span>
+                      <span>Rp {(item.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="font-bold text-right mt-2">
+                  Total: Rp {order.total.toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default FoodOrderingApp;
